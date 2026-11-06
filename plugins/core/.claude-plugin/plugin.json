@@ -1,0 +1,5 @@
+{
+  "name": "core",
+  "description": "全リポジトリ共通: SessionStart で knowledge を pull、ログ収集、PreToolUse のガードレール",
+  "author": { "name": "Tora29" }
+}

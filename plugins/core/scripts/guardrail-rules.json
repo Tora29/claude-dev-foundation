@@ -1,0 +1,47 @@
+{
+  "bash": [
+    { "decision": "deny", "pattern": "^gh\\s+pr\\s+merge\\b", "reason": "PR のマージは人が行います" },
+    { "decision": "deny", "pattern": "^gh\\s+api\\b.*(pulls/\\S+/merge\\b|mergePullRequest|enablePullRequestAutoMerge)", "reason": "PR のマージは人が行います" },
+    { "decision": "deny", "pattern": "^gh\\s+repo\\s+delete\\b", "reason": "リポジトリの削除は人が行います" },
+    { "decision": "deny", "pattern": "^gh\\s+auth\\s+token\\b", "reason": "認証トークンを出力するコマンドは禁止です" },
+    { "decision": "deny", "pattern": "^git\\s+push\\b.*\\s(-[a-zA-Z]*f[a-zA-Z]*|--force|\\+\\S+)(\\s|$)", "reason": "強制 push は禁止です。必要なら --force-with-lease を使ってください（確認が出ます）" },
+    { "decision": "deny", "pattern": "^rm\\b(?=.*\\s(-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)(\\s|$))(?=.*\\s(/\\*?|/[^/\\s]+/?|~/?|~/\\*|\\$\\{?HOME\\}?(/\\*?)?|\\.\\.?/?|\\./\\*|\\*)(\\s|$))", "reason": "ルート、ホーム、カレントディレクトリ全体の再帰削除は禁止です" },
+    { "decision": "deny", "pattern": "^(mkfs(\\.\\w+)?\\b|diskutil\\s+(erase\\w*|reformat|partitionDisk)\\b|dd\\b.*\\bof=/dev/)", "reason": "ディスクを初期化・上書きするコマンドは禁止です" },
+    { "decision": "deny", "scope": "command", "pattern": "\\b(curl|wget)\\b[^;&\\n]*\\|\\s*(sudo\\s+)?(ba|z)?sh\\b", "reason": "ダウンロードしたスクリプトをそのまま実行することは禁止です" },
+
+    { "decision": "ask", "pattern": "^rm\\b(?=.*\\s(-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)(\\s|$))", "unless": "^rm\\s+(-\\S+\\s+)*((\\./)?([\\w-][\\w.-]*/)*(node_modules|dist|build|out|target|coverage|\\.next|\\.nuxt|\\.svelte-kit|\\.turbo|\\.cache|\\.pytest_cache|\\.mypy_cache|\\.ruff_cache|__pycache__|\\.venv|venv)/?(\\s+|$))+$", "reason": "ディレクトリの再帰削除です。実行してよいか確認してください" },
+    { "decision": "ask", "pattern": "^find\\b.*\\s(-delete|-exec(dir)?\\s+rm)\\b", "reason": "find による一括削除です。実行してよいか確認してください" },
+    { "decision": "ask", "pattern": "^git\\s+push\\b.*\\s(--force-with-lease|--force-if-includes|--delete|-d|:\\S+)(=\\S*)?(\\s|$)", "reason": "リモートの履歴やブランチを書き換える push です。実行してよいか確認してください" },
+    { "decision": "ask", "pattern": "^git\\s+(reset\\b.*\\s--hard\\b|clean\\b.*\\s-[a-zA-Z]*f|(checkout|restore)\\b.*\\s\\.(\\s|$)|branch\\b.*\\s(-D|--delete\\s+--force)\\b|stash\\s+(drop|clear)\\b|filter-(branch|repo)\\b|update-ref\\b.*\\s-d\\b|reflog\\s+(expire|delete)\\b)", "reason": "未コミットの変更や履歴を失う可能性がある git 操作です。実行してよいか確認してください" },
+    { "decision": "ask", "pattern": "^gh\\s+(api\\b.*(-X\\s*|--method[\\s=])DELETE\\b|(secret|variable)\\s+(set|delete)\\b|repo\\s+edit\\b.*--visibility\\b|(release|issue|run|cache)\\s+delete\\b)", "reason": "GitHub 上のものを削除・変更する操作です。実行してよいか確認してください" },
+    { "decision": "ask", "pattern": "^(terraform|tofu|terragrunt)\\s+(apply|destroy|import|force-unlock|state\\s+(rm|mv|push)|workspace\\s+delete)\\b", "reason": "インフラを変更する操作です。実行してよいか確認してください" },
+    { "decision": "ask", "pattern": "^(kubectl\\s+(delete|drain)\\b|helm\\s+(uninstall|delete)\\b|aws\\s.*\\s(delete-\\S+|terminate-\\S+|rm|rb)\\b|wrangler\\s.*\\bdelete\\b)", "reason": "クラウド上のリソースを削除する操作です。実行してよいか確認してください" },
+    { "decision": "ask", "flags": "i", "pattern": "^(psql|mysql|mariadb|sqlite3|mongosh|redis-cli)\\b.*\\b(drop|truncate|delete\\s+from|flushall|flushdb|dropDatabase)\\b", "reason": "データを削除する DB 操作です。実行してよいか確認してください" },
+    { "decision": "ask", "pattern": "^(prisma\\s+migrate\\s+reset\\b|npx\\s+prisma\\s+migrate\\s+reset\\b|rails\\s+db:(drop|reset)\\b)", "reason": "データを削除する DB 操作です。実行してよいか確認してください" },
+    { "decision": "ask", "pattern": "^(npm|pnpm|yarn)\\s+publish\\b", "reason": "パッケージの公開です。実行してよいか確認してください" }
+  ],
+
+  "secret_commands": "^(cat|less|more|head|tail|bat|grep|egrep|fgrep|rg|ag|sed|awk|cut|sort|uniq|strings|xxd|hexdump|od|base64|source|\\.|cp|mv|rm|scp|rsync|tee|vi|vim|nvim|nano|code|open|pbcopy|diff|curl|git\\s+add)(\\s|$)",
+
+  "secret_files": [
+    { "decision": "deny", "pattern": "(^|/)\\.env(\\.[^/]+)?$", "unless": "\\.(example|sample|template|dist|defaults?)$" },
+    { "decision": "deny", "pattern": "(^|/)\\.dev\\.vars(\\.[^/]+)?$", "unless": "\\.(example|sample|template)$" },
+    { "decision": "deny", "pattern": "\\.(pem|key|p12|pfx|ppk|jks|keystore)$" },
+    { "decision": "deny", "pattern": "(^|/)id_(rsa|dsa|ecdsa|ed25519)$" },
+    { "decision": "deny", "pattern": "(^|/)\\.ssh/", "unless": "(\\.pub|/known_hosts(\\.old)?|/config)$" },
+    { "decision": "deny", "pattern": "(^|/)\\.gnupg/" },
+    { "decision": "deny", "pattern": "(^|/)Library/Keychains/" },
+    { "decision": "deny", "pattern": "(^|/)\\.aws/credentials$" },
+    { "decision": "deny", "pattern": "(^|/)\\.config/gh/hosts\\.ya?ml$" },
+    { "decision": "deny", "pattern": "(^|/)\\.claude/\\.credentials\\.json$" },
+    { "decision": "deny", "pattern": "(^|/)\\.(netrc|pgpass|git-credentials|vault-token|pypirc)$" },
+    { "decision": "deny", "pattern": "(^|/)\\.docker/config\\.json$" },
+    { "decision": "deny", "pattern": "(^|/)\\.kube/config$" },
+    { "decision": "deny", "pattern": "(^|/)(credentials|secrets?)\\.(json|ya?ml|toml|ini)$" },
+    { "decision": "deny", "pattern": "(^|/)service[-_]?account[^/]*\\.json$" },
+    { "decision": "deny", "pattern": "\\.tfstate(\\.backup)?$" },
+    { "decision": "ask", "pattern": "(^|/)\\.npmrc$" },
+    { "decision": "ask", "pattern": "\\.tfvars$" },
+    { "decision": "ask", "pattern": "(^|/)\\.envrc$" }
+  ]
+}

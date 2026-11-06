@@ -1,0 +1,9 @@
+{
+  "name": "claude-dev-foundation",
+  "description": "Claude Code の開発基盤プラグイン集",
+  "owner": { "name": "Tora29" },
+  "metadata": { "pluginRoot": "./plugins" },
+  "plugins": [
+    { "name": "core", "source": "core" }
+  ]
+}
