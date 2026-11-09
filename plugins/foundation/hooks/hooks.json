@@ -46,6 +46,15 @@
             "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/qa-bash-guard.sh"
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/knowledge-gate.sh"
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -55,6 +64,15 @@
           {
             "type": "command",
             "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/log-event.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/knowledge-read.sh"
           }
         ]
       }
