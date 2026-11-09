@@ -1,0 +1,7 @@
+{
+  "name": "foundation",
+  "description": "開発基盤: knowledge の規約の読み込み、ガードレール、ログ収集、設計書のスキル、qa-reviewer による採点と PR ゲート",
+  "author": {
+    "name": "Tora29"
+  }
+}

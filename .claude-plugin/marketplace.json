@@ -9,28 +9,8 @@
   },
   "plugins": [
     {
-      "name": "core",
-      "source": "core"
-    },
-    {
-      "name": "docs",
-      "source": "docs"
-    },
-    {
-      "name": "lang-typescript",
-      "source": "lang-typescript"
-    },
-    {
-      "name": "lang-svelte",
-      "source": "lang-svelte"
-    },
-    {
-      "name": "infra-terraform",
-      "source": "infra-terraform"
-    },
-    {
-      "name": "qa",
-      "source": "qa"
+      "name": "foundation",
+      "source": "foundation"
     }
   ]
 }

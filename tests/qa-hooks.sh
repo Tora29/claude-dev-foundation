@@ -1,7 +1,7 @@
 #!/bin/bash
 set -u
 root=$(cd "$(dirname "$0")/.." && pwd)
-scripts="$root/plugins/qa/scripts"
+scripts="$root/plugins/foundation/scripts"
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 # 状態ファイルは $HOME の下に書かれるので、本物の ~/.claude-logs に触れないよう一時ホームで動かす
@@ -127,7 +127,7 @@ check "Git の外での PR 作成" deny "$(gate 'gh pr create --fill' "$work")"
 
 # save-qa-result.sh: 最終応答から保存し、件数は指摘の行から数える
 save() { # 最終応答
-  jq -n --arg m "$1" --arg d "$repo" '{hook_event_name:"SubagentStop",agent_type:"qa:qa-reviewer",cwd:$d,last_assistant_message:$m}' |
+  jq -n --arg m "$1" --arg d "$repo" '{hook_event_name:"SubagentStop",agent_type:"foundation:qa-reviewer",cwd:$d,last_assistant_message:$m}' |
     "$scripts/save-qa-result.sh"
 }
 report() { # summary の JSON と finding の JSON（改行区切り）
@@ -174,7 +174,7 @@ check "保存: jsonl が複数あれば最後を使う" 1 "$(jq -r .blockers "$(
 mkdir -p .claude
 printf '%s\n' 'npm test' 'semgrep scan --config p/default --metrics=off --error --quiet .' > .claude/qa-test-commands
 guard() { # コマンド [agent_type]
-  jq -n --arg c "$1" --arg a "${2-qa:qa-reviewer}" --arg d "$repo" '{tool_name:"Bash",tool_input:{command:$c},cwd:$d} + (if $a == "" then {} else {agent_type:$a} end)' |
+  jq -n --arg c "$1" --arg a "${2-foundation:qa-reviewer}" --arg d "$repo" '{tool_name:"Bash",tool_input:{command:$c},cwd:$d} + (if $a == "" then {} else {agent_type:$a} end)' |
     "$scripts/qa-bash-guard.sh" | jq -r '.hookSpecificOutput.permissionDecision // empty' | { read -r d; echo "${d:-pass}"; }
 }
 check "制限: git diff" pass "$(guard 'git diff main')"

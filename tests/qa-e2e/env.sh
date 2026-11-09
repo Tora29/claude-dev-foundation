@@ -39,7 +39,7 @@ e2e_cleanup() { rm -rf "$e2e"; }
 run_claude() { # 作業ディレクトリ モデル 出力 依頼文 [追加の引数...]
   local dir=$1 model=$2 out=$3 prompt=$4; shift 4
   (cd "$dir" && PATH="$e2e/bin:$PATH" env -u CLAUDECODE claude -p "$prompt" \
-    --plugin-dir "$e2e/plugins/core" --plugin-dir "$e2e/plugins/qa" \
+    --plugin-dir "$e2e/plugins/foundation" \
     --model "$model" --setting-sources project,local --add-dir "$fake_home/knowledge" \
     --max-budget-usd "${MAX_BUDGET_USD:-2}" --output-format stream-json --verbose "$@" </dev/null > "$out" 2>&1)
 }

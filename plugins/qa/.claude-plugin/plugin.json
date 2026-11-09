@@ -1,5 +1,0 @@
-{
-  "name": "qa",
-  "description": "qa-reviewer による採点、/qa と commit-push-pr のスキル、QA結果の保存と PR ゲートのフック",
-  "author": { "name": "Tora29" }
-}

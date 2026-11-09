@@ -1,11 +1,11 @@
 schema_version: "1.1"
 name: docs-basic-design
 tags: [docs]
-plugins: ["../../../../plugins/core", "../../../../plugins/docs"]
+plugins: ["../../../../plugins/foundation"]
 context:
   scaffold_script: fixture.sh
 execution:
-  prompt: "/docs:basic-design REQ-002 方式は、生成しながらストリーミングで返し、認可はセッションで確認する形に決まっています。"
+  prompt: "/foundation:basic-design REQ-002 方式は、生成しながらストリーミングで返し、認可はセッションで確認する形に決まっています。"
   max_turns: 20
   allowed_tools: [Read, Glob, Grep, Skill]
   append_system_prompt: "~ は Read のパスにそのまま書けます。ホームの絶対パスを推測しないでください。"

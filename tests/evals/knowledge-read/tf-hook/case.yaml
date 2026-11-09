@@ -1,7 +1,7 @@
 schema_version: "1.1"
 name: tf-hook
 tags: [knowledge-read]
-plugins: ["../../../../plugins/core", "../../../../plugins/infra-terraform"]
+plugins: ["../../../../plugins/foundation"]
 context:
   scaffold_script: fixture.sh
 execution:

@@ -4,7 +4,7 @@ rep() { printf "%0.s$1" $(seq 1 "$2"); }
 fail=0; n=0
 check() { # 入力 残ってはいけない文字列（空なら入力がそのまま残ること）
   n=$((n + 1))
-  got=$(jq -n -r -L "$root/plugins/core/scripts" --arg s "$1" 'include "mask"; $s | mask')
+  got=$(jq -n -r -L "$root/plugins/foundation/scripts" --arg s "$1" 'include "mask"; $s | mask')
   if [ -n "$2" ]; then
     case "$got" in *"$2"*) echo "NG 漏れ: $got"; fail=$((fail + 1)) ;; esac
   elif [ "$got" != "$1" ]; then

@@ -7,6 +7,6 @@ argument-hint: "[対象の要件ID ...]"
 2. docs/requirements.md の確定した要件と、docs/basic-design.md を読む。basic-design.md がなければテンプレートから作る。あれば作り直さず、追記する
 3. 既存のコードや定義ファイルを確かめて下書きする
 4. 方式を変えるときは、理由を docs/adr/ に残す
-5. 下書きができたら `/qa:qa design` を実行し、レポートを人に見せて承認を待つ。承認されるまで実装に進まない
+5. 下書きができたら `/foundation:qa design` を実行し、レポートを人に見せて承認を待つ。承認されるまで実装に進まない
 
-終わる条件: `/qa:qa design` のあと、人が承認した。
+終わる条件: `/foundation:qa design` のあと、人が承認した。
