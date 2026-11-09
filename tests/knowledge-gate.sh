@@ -34,6 +34,19 @@ check "../ を含むパスで読んでも記録される" allow "$(gate s3 "$hom
 read_ s4 "$home/work/typescript/conventions.md"
 check "knowledge の外の同じ名前のファイルは数えない" deny "$(gate s4 "$home/work/a.ts")"
 check "session_id が不正なら止めない" allow "$(gate '../x' "$home/work/a.ts")"
+bash_() { jq -n --arg s "$1" --arg c "$2" '{session_id:$s,tool_name:"Bash",tool_input:{command:$c}}' | HOME=$home bash "$scripts/knowledge-gate.sh"; }
+bread() { jq -n --arg s "$1" --arg c "$2" '{session_id:$s,tool_name:"Bash",tool_input:{command:$c}}' | HOME=$home bash "$scripts/knowledge-read.sh"; }
+check "Bash の >> で .ts に書く（未読）" deny "$(bash_ b1 "printf '\\n' >> $home/work/src/math.ts")"
+check "Bash の sed -i で .ts を書き換える（未読）" deny "$(bash_ b1 "sed -i '' 's/a/b/' src/math.ts")"
+check "Bash で .ts を読むだけ" allow "$(bash_ b1 "cat src/math.ts")"
+check "Bash のテストの実行と 2>&1" allow "$(bash_ b1 "npx vitest run src/a.test.ts 2>&1 | tail -5")"
+check "Bash の >/dev/null" allow "$(bash_ b1 "node src/a.ts >/dev/null")"
+check "Bash で .md に書く" allow "$(bash_ b1 "echo x >> notes.md")"
+bread b1 "cat ~/knowledge/INDEX.md; echo ---; cat ~/knowledge/typescript/conventions.md"
+check "Bash の cat で読んだ規約も数える" allow "$(gate b1 "$home/work/a.ts")"
+check "Bash の cat で読んだあとの >>" allow "$(bash_ b1 "printf x >> src/math.ts")"
+bread b2 'cat $HOME/knowledge/svelte/conventions.md'
+check "\$HOME で書いたパスも数える" allow "$(gate b2 "$home/work/x.svelte")"
 mv "$home/knowledge/languages.json" "$home/languages.json"
 check "languages.json がなければ止めない" allow "$(gate s9 "$home/work/a.ts")"
 [ "$(stat -f %Lp "$home/.claude-logs/knowledge-reads" 2>/dev/null || stat -c %a "$home/.claude-logs/knowledge-reads")" = 700 ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "NG: 記録のディレクトリの権限"; }
