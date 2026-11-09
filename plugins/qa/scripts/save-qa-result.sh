@@ -1,0 +1,41 @@
+#!/bin/bash
+set -u
+here=$(dirname "$0"); . "$here/lib.sh"
+umask 077
+input=$(cat)
+cd "$(jq -r .cwd <<<"$input")" || exit 0
+logs="$HOME/.claude-logs"; mkdir -p "$logs/qa-state" "$logs/qa-reports"
+msg=$(jq -r '.last_assistant_message // ""' <<<"$input")
+block=$(awk '/^```jsonl[[:space:]]*$/{b="";on=1;next} /^```[[:space:]]*$/{if(on){last=b;on=0};next} on{b=b $0 "\n"} END{printf "%s",last}' <<<"$msg")
+records=$(jq -c --slurp . <<<"$block" 2>/dev/null) || records=""
+summary=$(jq -c 'map(select(.type=="summary")) | first // empty' <<<"${records:-[]}")
+if [ -z "$summary" ]; then
+  echo '{"systemMessage":"QAの結果を読み取れませんでした。QA未実施として扱います"}'
+  exit 0
+fi
+target=$(jq -r '.target // "pr"' <<<"$summary")
+branch=$(git branch --show-current)
+day=$(date +%F)
+# 指摘の保存
+jq -c --arg b "$branch" --arg d "$day" --arg t "$target" -L "$here" 'include "mask"; .[] | select(.type=="finding") | . + {branch:$b, target:$t, date:$d} | mask_all' \
+  <<<"$records" >> "$logs/qa-findings-$day.jsonl"
+# 人向けレポートの保存（jsonl ブロックを除く）
+safe_branch=${branch//\//-}
+awk '/^```jsonl[[:space:]]*$/{exit} {print}' <<<"$msg" |
+  jq -Rrs -L "$here" 'include "mask"; mask' > "$logs/qa-reports/$day-$safe_branch-$target.md"
+[ "$target" = pr ] || exit 0
+# ゲート用の状態更新。件数は指摘の行から数え、LLMの申告を使わない
+blockers=$(jq '[.[]|select(.type=="finding" and .severity=="blocker")]|length' <<<"$records")
+majors=$(jq '[.[]|select(.type=="finding" and .severity=="major")]|length' <<<"$records")
+high=$(jq '[.[]|select(.type=="finding" and .severity=="blocker" and .fix_risk=="high")]|length' <<<"$records")
+if [ "$blockers" -eq 0 ] && [ "$(jq -r '.verdict // ""' <<<"$summary")" = 差し戻し ]; then
+  echo '{"systemMessage":"QAの判定と指摘が食い違っています。QA未実施として扱います"}'
+  exit 0
+fi
+human=$(jq -r '.needs_human // false' <<<"$summary"); [ "$high" -gt 0 ] && human=true
+f=$(state_file); streak=0
+[ -f "$f" ] && streak=$(jq -r '.blocker_streak // 0' "$f")
+if [ "$blockers" -gt 0 ]; then streak=$((streak+1)); else streak=0; fi
+jq -n --arg fp "$(fingerprint)" --argjson b "$blockers" --argjson m "$majors" --argjson h "$human" --argjson s "$streak" \
+  '{fingerprint:$fp, blockers:$b, majors:$m, needs_human:$h, blocker_streak:$s}' > "$f"
+exit 0

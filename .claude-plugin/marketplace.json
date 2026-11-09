@@ -27,6 +27,10 @@
     {
       "name": "infra-terraform",
       "source": "infra-terraform"
+    },
+    {
+      "name": "qa",
+      "source": "qa"
     }
   ]
 }
