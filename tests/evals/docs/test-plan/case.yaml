@@ -1,0 +1,18 @@
+schema_version: "1.1"
+name: docs-test-plan
+tags: [docs]
+plugins: ["../../../../plugins/core", "../../../../plugins/docs"]
+context:
+  scaffold_script: fixture.sh
+execution:
+  prompt: "/docs:test-plan"
+  max_turns: 20
+  allowed_tools: [Read, Glob, Grep, Skill]
+  append_system_prompt: "~ は Read のパスにそのまま書けます。ホームの絶対パスを推測しないでください。"
+graders:
+  - { name: reads-policy, type: tool_used, tool: Read, input_match: "testing/policy\\.md" }
+  - { name: keeps-existing-row, type: regex, pattern: "REQ-001 \\| BD-001", target: { source: file, path: "docs/test-plan.md" } }
+  - { name: adds-req-002, type: regex, pattern: "\\| REQ-002 \\| BD-002", target: { source: file, path: "docs/test-plan.md" } }
+  - { name: adds-nfr-001, type: regex, pattern: "\\| NFR-001 \\|", target: { source: file, path: "docs/test-plan.md" } }
+  - { name: skips-retired, type: regex, pattern: "\\| REQ-003 \\|", match: not_contains, target: { source: file, path: "docs/test-plan.md" } }
+  - { name: skips-could, type: regex, pattern: "\\| REQ-004 \\|", match: not_contains, target: { source: file, path: "docs/test-plan.md" } }

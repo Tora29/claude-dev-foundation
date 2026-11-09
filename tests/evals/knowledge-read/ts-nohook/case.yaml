@@ -1,0 +1,15 @@
+schema_version: "1.1"
+name: ts-nohook
+tags: [knowledge-read]
+plugins: ["../../../../plugins/lang-typescript"]
+context:
+  scaffold_script: fixture.sh
+execution:
+  prompt: "src/math.ts に、2つの数を足す関数 add を追加してください。"
+  max_turns: 25
+  allowed_tools: [Read, Glob, Grep, Skill]
+graders:
+  - name: read-knowledge
+    type: tool_used
+    tool: Read
+    input_match: "knowledge/(INDEX\\.md|typescript/)"

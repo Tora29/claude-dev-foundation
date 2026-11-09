@@ -1,0 +1,19 @@
+schema_version: "1.1"
+name: docs-basic-design
+tags: [docs]
+plugins: ["../../../../plugins/core", "../../../../plugins/docs"]
+context:
+  scaffold_script: fixture.sh
+execution:
+  prompt: "/docs:basic-design REQ-002 方式は、生成しながらストリーミングで返し、認可はセッションで確認する形に決まっています。"
+  max_turns: 20
+  allowed_tools: [Read, Glob, Grep, Skill]
+  append_system_prompt: "~ は Read のパスにそのまま書けます。ホームの絶対パスを推測しないでください。"
+graders:
+  - { name: reads-template, type: tool_used, tool: Read, input_match: "docs-templates/basic-design\\.md" }
+  - { name: template-before-write, type: tool_order, before: { tool: Read, input_match: "docs-templates/basic-design\\.md" }, after: Write }
+  - { name: creates-file, type: file_exists, path: "docs/basic-design.md" }
+  - { name: has-bd-id, type: regex, pattern: "BD-\\d+", target: { source: file, path: "docs/basic-design.md" } }
+  - { name: links-requirement, type: regex, pattern: "REQ-002", target: { source: file, path: "docs/basic-design.md" } }
+  - { name: tries-qa, type: tool_used, tool: Skill, input_match: "qa" }
+  - { name: no-code-edit, type: tool_used, tool: Edit, input_match: "src/", min: 0, max: 0 }

@@ -1,5 +1,4 @@
 #!/bin/bash
-# guardrail-rules.json を変えたら実行する。tests/guardrail-cases.json のとおりに判定されるかを確かめる
 root=$(cd "$(dirname "$0")/.." && pwd)
 script="$root/plugins/core/scripts/guardrail.sh"
 fail=0; n=0

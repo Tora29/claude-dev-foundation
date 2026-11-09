@@ -1,4 +1,3 @@
-# scripts/mask.jq
 def mask:
   gsub("-----BEGIN [A-Z ]*PRIVATE KEY-----[\\s\\S]*?(-----END [A-Z ]*PRIVATE KEY-----|$)"; "***MASKED***")
   | gsub("sk[-_][A-Za-z0-9_-]{16,}"; "***MASKED***")
