@@ -1,9 +1,32 @@
 {
   "name": "claude-dev-foundation",
   "description": "Claude Code の開発基盤プラグイン集",
-  "owner": { "name": "Tora29" },
-  "metadata": { "pluginRoot": "./plugins" },
+  "owner": {
+    "name": "Tora29"
+  },
+  "metadata": {
+    "pluginRoot": "./plugins"
+  },
   "plugins": [
-    { "name": "core", "source": "core" }
+    {
+      "name": "core",
+      "source": "core"
+    },
+    {
+      "name": "docs",
+      "source": "docs"
+    },
+    {
+      "name": "lang-typescript",
+      "source": "lang-typescript"
+    },
+    {
+      "name": "lang-svelte",
+      "source": "lang-svelte"
+    },
+    {
+      "name": "infra-terraform",
+      "source": "infra-terraform"
+    }
   ]
 }

@@ -1,0 +1,7 @@
+{
+  "name": "infra-terraform",
+  "description": "Terraform のファイルを扱うときに ~/knowledge の規約を読ませるスキル",
+  "author": {
+    "name": "Tora29"
+  }
+}
