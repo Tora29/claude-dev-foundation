@@ -1,5 +1,4 @@
 #!/bin/bash
-# scripts/log-event.sh
 [ -n "$CLAUDE_BOT_RUN" ] && exit 0   # 週次分析自身の実行は記録しない
 umask 077
 mkdir -p ~/.claude-logs
