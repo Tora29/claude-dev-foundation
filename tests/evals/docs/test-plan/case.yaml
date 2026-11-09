@@ -1,11 +1,11 @@
 schema_version: "1.1"
 name: docs-test-plan
 tags: [docs]
-plugins: ["../../../../plugins/core", "../../../../plugins/docs"]
+plugins: ["../../../../plugins/foundation"]
 context:
   scaffold_script: fixture.sh
 execution:
-  prompt: "/docs:test-plan"
+  prompt: "/foundation:test-plan"
   max_turns: 20
   allowed_tools: [Read, Glob, Grep, Skill]
   append_system_prompt: "~ は Read のパスにそのまま書けます。ホームの絶対パスを推測しないでください。"

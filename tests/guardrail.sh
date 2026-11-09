@@ -1,6 +1,6 @@
 #!/bin/bash
 root=$(cd "$(dirname "$0")/.." && pwd)
-script="$root/plugins/core/scripts/guardrail.sh"
+script="$root/plugins/foundation/scripts/guardrail.sh"
 fail=0; n=0
 while IFS= read -r c; do
   n=$((n + 1))

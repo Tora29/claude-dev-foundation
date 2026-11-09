@@ -13,7 +13,7 @@ run_claude "$g/app" haiku "$out_dir/gate.jsonl" '次の2つのコマンドを、
 
 r="$e2e/flow"
 "$root/tests/qa-e2e/make-repo.sh" "$r" flow
-run_claude "$r/app" "${MODEL:-sonnet}" "$out_dir/flow.jsonl" "/qa:commit-push-pr" \
+run_claude "$r/app" "${MODEL:-sonnet}" "$out_dir/flow.jsonl" "/foundation:commit-push-pr" \
   --allowedTools Read Glob Grep Edit Write Bash Skill Task Agent
 # 人の判断を求めて止まったときは、同じセッションを続けて答える
 followup=${FOLLOWUP:-'判断をお伝えします。関連する要件は REQ-001 と NFR-001 です。そのほかの指摘は今回は直さず、残った点として PR 本文に書いてください。続けて PR まで進めてください。'}
