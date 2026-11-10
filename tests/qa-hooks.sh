@@ -146,11 +146,15 @@ check "保存: blockers は指摘の行から" 1 "$(jq -r .blockers "$(state_fil
 check "保存: majors" 1 "$(jq -r .majors "$(state_file)")"
 check "保存: streak" 1 "$(jq -r .blocker_streak "$(state_file)")"
 check "保存: 指紋は現在の値" "$(fingerprint)" "$(jq -r .fingerprint "$(state_file)")"
-check "保存: 指摘は2行" 2 "$(wc -l < "$HOME/.claude-logs/qa-findings-$day.jsonl" | tr -d ' ')"
+check "保存: 指摘は2行" 2 "$(jq -s 'map(select(.type=="finding"))|length' "$HOME/.claude-logs/qa-findings-$day.jsonl")"
+check "保存: 回ごとの判定と件数を残す" '差し戻し 1 1' "$(jq -rs 'map(select(.type=="summary"))|last|"\(.verdict) \(.blockers) \(.majors)"' "$HOME/.claude-logs/qa-findings-$day.jsonl")"
+check "保存: 指摘と判定に同じ回の印が付く" 1 "$(jq -rs 'map(.run)|unique|length' "$HOME/.claude-logs/qa-findings-$day.jsonl")"
 check "保存: 指摘はマスクされる" 0 "$(grep -c "$fake_token" "$HOME/.claude-logs/qa-findings-$day.jsonl")"
-check "保存: レポートに jsonl を含めない" 0 "$(grep -c '```jsonl' "$HOME/.claude-logs/qa-reports/$day-feat-x-pr.md")"
+check "保存: レポートに jsonl を含めない" 0 "$(cat "$HOME/.claude-logs/qa-reports/$day-feat-x-pr-"*.md | grep -c '```jsonl')"
 check "保存: ファイルは本人だけが読める" "-rw-------" "$(ls -l "$HOME/.claude-logs/qa-findings-$day.jsonl" | cut -c1-10)"
+sleep 1   # 回の印は秒単位なので、次の回と分ける
 save "$(report "$sum"$'\n'"$f3")" >/dev/null
+check "保存: レポートは回ごとに残る" 2 "$(ls "$HOME/.claude-logs/qa-reports/$day-feat-x-pr-"*.md | wc -l | tr -d ' ')"
 check "保存: fix_risk が high の blocker で needs_human" true "$(jq -r .needs_human "$(state_file)")"
 check "保存: streak が続く" 2 "$(jq -r .blocker_streak "$(state_file)")"
 save "$(report '{"type":"summary","target":"pr","verdict":"マージ可","needs_human":false}')" >/dev/null
@@ -166,7 +170,7 @@ check "保存: 読み取れなければ記録しない" same "$(cmp -s "$work/be
 check "保存: 読み取れないことを知らせる" yes "$(jq -r .systemMessage <<<"$msg" | grep -q '読み取れません' && echo yes)"
 save "$(report '{"type":"summary","target":"requirements","verdict":"修正推奨","needs_human":false}'$'\n'"$f2")" >/dev/null
 check "保存: requirements はゲートの記録を変えない" same "$(cmp -s "$work/before.json" "$(state_file)" && echo same)"
-check "保存: requirements のレポートは残す" yes "$([ -f "$HOME/.claude-logs/qa-reports/$day-feat-x-requirements.md" ] && echo yes)"
+check "保存: requirements のレポートは残す" yes "$(ls "$HOME/.claude-logs/qa-reports/$day-feat-x-requirements-"*.md >/dev/null 2>&1 && echo yes)"
 save "$(printf '```jsonl\n%s\n```\n修正版:\n```jsonl\n%s\n```\n' '{"type":"summary","target":"pr","verdict":"マージ可","needs_human":false}' "$sum"$'\n'"$f1")" >/dev/null
 check "保存: jsonl が複数あれば最後を使う" 1 "$(jq -r .blockers "$(state_file)")"
 
@@ -192,6 +196,25 @@ check "制限: git の書き込み" deny "$(guard 'git commit -m x')"
 check "制限: 改行で連結" deny "$(guard $'git status\nrm -rf src')"
 check "制限: qa-reviewer 以外は対象外" pass "$(guard 'rm -rf src' '')"
 check "制限: 別のエージェントも対象外" pass "$(guard 'npm run build' 'Explore')"
+
+# run-gate.sh: 判定をそのまま返し、deny と ask だけを記録する
+rg() { # 包むフック 入力
+  "$scripts/run-gate.sh" "$1" <<<"$2"; echo "rc=$?"
+}
+events="$HOME/.claude-logs/events-$(date +%F).jsonl"
+rm -f "$events"
+in_deny=$(jq -n --arg d "$repo" --arg t "$fake_token" '{hook_event_name:"PreToolUse",session_id:"s1",cwd:$d,tool_name:"Bash",tool_input:{command:"git push origin main # token=\($t)"}}')
+want=$(printf '%s\n' "$in_deny" | "$scripts/pr-gate.sh")
+got=$(rg pr-gate.sh "$in_deny")
+check "記録: 判定はそのまま返す" "$want"$'\n'rc=0 "$got"
+check "記録: deny を1行残す" 'pr-gate deny Bash' "$(jq -r '"\(.gate) \(.decision) \(.tool)"' "$events")"
+check "記録: コマンドはマスクする" 0 "$(grep -c "$fake_token" "$events")"
+rg pr-gate.sh "$(jq -n --arg d "$repo" '{hook_event_name:"PreToolUse",session_id:"s1",cwd:$d,tool_name:"Bash",tool_input:{command:"git status"}}')" >/dev/null
+check "記録: 判定がなければ残さない" 1 "$(wc -l < "$events" | tr -d ' ')"
+check "記録: フックの失敗の終了コードを返す" rc=2 "$(rg pr-gate.sh '{"cwd":"/nonexistent","tool_input":{"command":"git push"}}' 2>/dev/null | tail -1)"
+CLAUDE_BOT_RUN=1 rg pr-gate.sh "$in_deny" >/dev/null
+check "記録: 週次分析の実行は残さない" 1 "$(wc -l < "$events" | tr -d ' ')"
+rm -f "$events"
 
 echo "$((n - fail))/$n passed"
 [ "$fail" -eq 0 ]
