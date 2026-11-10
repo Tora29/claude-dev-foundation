@@ -16,17 +16,20 @@ fi
 target=$(jq -r '.target // "pr"' <<<"$summary")
 branch=$(git branch --show-current)
 day=$(date +%F)
-# 指摘の保存
-jq -c --arg b "$branch" --arg d "$day" --arg t "$target" -L "$here" 'include "mask"; .[] | select(.type=="finding") | . + {branch:$b, target:$t, date:$d} | mask_all' \
-  <<<"$records" >> "$logs/qa-findings-$day.jsonl"
-# 人向けレポートの保存（jsonl ブロックを除く）
-safe_branch=${branch//\//-}
-awk '/^```jsonl[[:space:]]*$/{exit} {print}' <<<"$msg" |
-  jq -Rrs -L "$here" 'include "mask"; mask' > "$logs/qa-reports/$day-$safe_branch-$target.md"
-[ "$target" = pr ] || exit 0
-# ゲート用の状態更新。件数は指摘の行から数え、LLMの申告を使わない
+run=$(date +%H%M%S)   # 同じ日の何回目の QA かを区別する
 blockers=$(jq '[.[]|select(.type=="finding" and .severity=="blocker")]|length' <<<"$records")
 majors=$(jq '[.[]|select(.type=="finding" and .severity=="major")]|length' <<<"$records")
+# 指摘と、回ごとの判定と件数の保存
+jq -c --arg b "$branch" --arg d "$day" --arg t "$target" --arg r "$run" --argjson nb "$blockers" --argjson nm "$majors" -L "$here" 'include "mask";
+  (.[] | select(.type=="finding")), (map(select(.type=="summary")) | first | . + {blockers:$nb, majors:$nm})
+  | . + {branch:$b, target:$t, date:$d, run:$r} | mask_all' \
+  <<<"$records" >> "$logs/qa-findings-$day.jsonl"
+# 人向けレポートの保存（jsonl ブロックを除く）。回ごとに別のファイルにする
+safe_branch=${branch//\//-}
+awk '/^```jsonl[[:space:]]*$/{exit} {print}' <<<"$msg" |
+  jq -Rrs -L "$here" 'include "mask"; mask' > "$logs/qa-reports/$day-$safe_branch-$target-$run.md"
+[ "$target" = pr ] || exit 0
+# ゲート用の状態更新。件数は指摘の行から数え、LLMの申告を使わない
 high=$(jq '[.[]|select(.type=="finding" and .severity=="blocker" and .fix_risk=="high")]|length' <<<"$records")
 if [ "$blockers" -eq 0 ] && [ "$(jq -r '.verdict // ""' <<<"$summary")" = 差し戻し ]; then
   echo '{"systemMessage":"QAの判定と指摘が食い違っています。QA未実施として扱います"}'
