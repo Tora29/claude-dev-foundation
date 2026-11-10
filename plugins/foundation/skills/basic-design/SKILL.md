@@ -1,7 +1,7 @@
 ---
 name: basic-design
 description: 確定した要件から基本設計を下書きし、docs/basic-design.md に BD-ID を追記する。新機能や設計の変更で、実装の前に方式を決めるときに使う。
-argument-hint: "[対象の要件ID ...]"
+user-invocable: false
 ---
 1. ~/knowledge/docs-templates/basic-design.md を読み、注記に従う
 2. docs/requirements.md の確定した要件と、docs/basic-design.md を読む。basic-design.md がなければテンプレートから作る。あれば作り直さず、追記する
