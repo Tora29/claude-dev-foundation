@@ -1,7 +1,7 @@
 ---
 name: requirements
 description: 要件定義を人に質問しながら下書きし、docs/requirements.md に REQ-ID と NFR-ID を追記・変更する。機能の追加や仕様変更で要件を決めるときに使う。
-argument-hint: "[追加・変更したい内容]"
+user-invocable: false
 ---
 1. ~/knowledge/docs-templates/requirements.md を読み、注記に従う
 2. docs/requirements.md を読む。なければテンプレートから作る。あれば作り直さず、追記または変更する
