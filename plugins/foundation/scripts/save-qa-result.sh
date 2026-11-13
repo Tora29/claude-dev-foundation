@@ -28,6 +28,12 @@ fi
 records=$(jq -c --slurp . <<<"$block" 2>/dev/null) || records=""
 summary=$(jq -c 'map(select(.type=="summary")) | first // empty' <<<"${records:-[]}")
 if [ -z "$summary" ]; then
+  # 文章を書かずに SubagentHandback だけで返すと、フックの時点ではレポートがどこにも無い。
+  # 1回目は止まらせずに、レポートを文章で書き直させる。書き直しても読めなければ（stop_hook_active）、知らせて終わる
+  if [ "$(jq -r '.stop_hook_active // false' <<<"$input")" != true ]; then
+    jq -n '{decision:"block",reason:"QAの結果をフックが読み取れませんでした。出力A（人間向けレポート）と出力B（jsonl を言語指定したコードブロック）を、道具を使わずに通常の応答の文章としてもう一度出力してください。jsonl のブロックは応答の最後に置いてください。"}'
+    exit 0
+  fi
   echo '{"systemMessage":"QAの結果を読み取れませんでした。QA未実施として扱います"}'
   exit 0
 fi
