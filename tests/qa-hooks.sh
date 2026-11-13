@@ -98,6 +98,30 @@ check "判定1: main の上でも作業ブランチの削除は通す" pass "$(g
 check "判定1: main の削除は止める" deny "$(gate 'git push origin --delete main')"
 git switch -q feat/x
 
+# 判定1: push するリポジトリで判定する。印（.foundation/allow-direct-push）が origin の main にあれば通す
+mkrepo() { # パス。origin を持ち、main にいるリポジトリを作る
+  git init -q --bare "$1.git" && git init -q "$1" &&
+    (cd "$1" && echo x > a && git add -A && git commit -qm init && git remote add origin "$1.git" &&
+      git push -q -u origin main && git remote set-head origin main)
+}
+kn="$HOME/kn"; nm="$work/nm"
+mkrepo "$kn"; mkrepo "$nm"
+check "判定1: 別のリポジトリの main の上での push は、そのリポジトリで判定する" deny "$(gate "cd $nm && git push")"
+check "判定1: git -C の push も対象" deny "$(gate "git -C $nm push origin main")"
+check "判定1: git -c の後ろの push も対象" deny "$(gate 'git -c push.default=current push origin main')"
+mkdir -p "$kn/.foundation" && touch "$kn/.foundation/allow-direct-push"
+check "判定1: 印を手元に置いただけでは止める" deny "$(gate 'cd ~/kn && git push origin main')"
+(cd "$kn" && git switch -q -c feat/m && git add -A && git commit -qm m && git push -q origin feat/m)
+check "判定1: 印が作業ブランチにあるだけでは止める" deny "$(gate "cd $kn && git push origin HEAD:main")"
+(cd "$kn" && git switch -q main && git merge -q feat/m && git push -q origin main)
+check "判定1: 印が origin の main にあれば通す" pass "$(gate 'cd ~/kn && git push origin main')"
+check "判定1: 印があれば main の上での push も通す" pass "$(gate "cd $kn && git push")"
+check "判定1: 印があれば git -C も通す" pass "$(gate 'git -C ~/kn push origin main')"
+check "判定1: \$HOME のパスも読む" pass "$(gate 'cd "$HOME/kn" && git push')"
+check "判定1: 印があっても main の削除は止める" deny "$(gate "cd $kn && git push origin --delete main")"
+check "判定1: 印は push するリポジトリのものだけを見る" deny "$(gate "cd $nm && git push origin main" "$kn")"
+check "判定1: 印のないリポジトリへの cd を挟んでも止める" deny "$(gate "cd $kn && git status && cd $nm && git push")"
+
 # 判定2: PR 作成でなければ通す
 check "判定2: gh pr view" pass "$(gate 'gh pr view 1')"
 check "判定2: git status" pass "$(gate 'git status')"
