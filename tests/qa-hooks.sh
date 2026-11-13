@@ -191,7 +191,11 @@ check "保存: 差し戻しなのに blocker がなければ記録しない" sam
 check "保存: そのときは知らせる" yes "$(jq -r .systemMessage <<<"$msg" | grep -q 'QA未実施' && echo yes)"
 msg=$(save "jsonl のブロックがない応答")
 check "保存: 読み取れなければ記録しない" same "$(cmp -s "$work/before.json" "$(state_file)" && echo same)"
-check "保存: 読み取れないことを知らせる" yes "$(jq -r .systemMessage <<<"$msg" | grep -q '読み取れません' && echo yes)"
+check "保存: 読み取れなければ1回目は書き直させる" block "$(jq -r .decision <<<"$msg")"
+check "保存: 書き直させる理由に jsonl を求める" yes "$(jq -r .reason <<<"$msg" | grep -q 'jsonl' && echo yes)"
+msg=$(jq -n --arg d "$repo" '{hook_event_name:"SubagentStop",agent_type:"foundation:qa-reviewer",cwd:$d,stop_hook_active:true,last_assistant_message:"jsonl のブロックがない応答"}' | "$scripts/save-qa-result.sh")
+check "保存: 書き直しても読み取れなければ記録しない" same "$(cmp -s "$work/before.json" "$(state_file)" && echo same)"
+check "保存: 書き直しても読み取れなければ止めずに知らせる" 'null yes' "$(jq -r .decision <<<"$msg") $(jq -r .systemMessage <<<"$msg" | grep -q '読み取れません' && echo yes)"
 save "$(report '{"type":"summary","target":"requirements","verdict":"修正推奨","needs_human":false}'$'\n'"$f2")" >/dev/null
 check "保存: requirements はゲートの記録を変えない" same "$(cmp -s "$work/before.json" "$(state_file)" && echo same)"
 check "保存: requirements のレポートは残す" yes "$(ls "$HOME/.claude-logs/qa-reports/$day-feat-x-requirements-"*.md >/dev/null 2>&1 && echo yes)"
@@ -218,7 +222,7 @@ check "保存: 記録の場所が無ければ親の記録の隣を探す" 1 "$(j
 cp "$(state_file)" "$work/before.json"
 msg=$(save_tr "$(jq -n --arg p "$work/tr/none.jsonl" '{agent_transcript_path:$p}')")
 check "保存: 記録が無ければ記録しない" same "$(cmp -s "$work/before.json" "$(state_file)" && echo same)"
-check "保存: 記録が無いことを知らせる" yes "$(jq -r .systemMessage <<<"$msg" | grep -q '読み取れません' && echo yes)"
+check "保存: 記録が無ければ書き直させる" block "$(jq -r .decision <<<"$msg")"
 save_tr "$(jq -n --arg p "$work/tr/agent-x.jsonl" '{agent_transcript_path:$p,last_assistant_message:"# 文章\n本文"}')" >/dev/null
 check "保存: 文章に jsonl が無くても記録から読む" '0 1' "$(jq -r '"\(.blockers) \(.majors)"' "$(state_file)")"
 
