@@ -198,6 +198,30 @@ check "保存: requirements のレポートは残す" yes "$(ls "$HOME/.claude-l
 save "$(printf '```jsonl\n%s\n```\n修正版:\n```jsonl\n%s\n```\n' '{"type":"summary","target":"pr","verdict":"マージ可","needs_human":false}' "$sum"$'\n'"$f1")" >/dev/null
 check "保存: jsonl が複数あれば最後を使う" 1 "$(jq -r .blockers "$(state_file)")"
 
+# 文章を書かずに SubagentHandback でレポートを返したとき
+handback_line() { # レポート
+  jq -cn --arg m "$1" '{type:"assistant",message:{role:"assistant",content:[{type:"tool_use",name:"SubagentHandback",input:{message:$m}}]}}'
+}
+mkdir -p "$work/tr/sess/subagents"
+{ handback_line "$(report "$sum"$'\n'"$f1")"; handback_line "$(report '{"type":"summary","target":"pr","verdict":"修正推奨","needs_human":false}'$'\n'"$f2")"; } > "$work/tr/agent-x.jsonl"
+save_tr() { # 入力に足す JSON
+  jq -n --arg d "$repo" --argjson x "$1" '{hook_event_name:"SubagentStop",agent_type:"foundation:qa-reviewer",cwd:$d,last_assistant_message:""} + $x' |
+    "$scripts/save-qa-result.sh"
+}
+save_tr "$(jq -n --arg p "$work/tr/agent-x.jsonl" '{agent_transcript_path:$p}')" >/dev/null
+check "保存: 文章が空ならエージェントの記録の最後のレポートを読む" '0 1' "$(jq -r '"\(.blockers) \(.majors)"' "$(state_file)")"
+check "保存: その回の判定も残す" 修正推奨 "$(jq -rs 'map(select(.type=="summary"))|last|.verdict' "$HOME/.claude-logs/qa-findings-$day.jsonl")"
+cp "$work/tr/agent-x.jsonl" "$work/tr/sess/subagents/agent-a1.jsonl"
+handback_line "$(report "$sum"$'\n'"$f1")" >> "$work/tr/sess/subagents/agent-a1.jsonl"
+save_tr "$(jq -n --arg p "$work/tr/sess.jsonl" '{transcript_path:$p,agent_id:"a1"}')" >/dev/null
+check "保存: 記録の場所が無ければ親の記録の隣を探す" 1 "$(jq -r .blockers "$(state_file)")"
+cp "$(state_file)" "$work/before.json"
+msg=$(save_tr "$(jq -n --arg p "$work/tr/none.jsonl" '{agent_transcript_path:$p}')")
+check "保存: 記録が無ければ記録しない" same "$(cmp -s "$work/before.json" "$(state_file)" && echo same)"
+check "保存: 記録が無いことを知らせる" yes "$(jq -r .systemMessage <<<"$msg" | grep -q '読み取れません' && echo yes)"
+save_tr "$(jq -n --arg p "$work/tr/agent-x.jsonl" '{agent_transcript_path:$p,last_assistant_message:"# 文章\n本文"}')" >/dev/null
+check "保存: 文章に jsonl が無くても記録から読む" '0 1' "$(jq -r '"\(.blockers) \(.majors)"' "$(state_file)")"
+
 # qa-bash-guard.sh
 mkdir -p .claude
 printf '%s\n' 'npm test' 'semgrep scan --config p/default --metrics=off --error --quiet .' > .claude/qa-test-commands

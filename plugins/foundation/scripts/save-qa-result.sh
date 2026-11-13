@@ -5,8 +5,18 @@ umask 077
 input=$(cat)
 cd "$(jq -r .cwd <<<"$input")" || exit 0
 logs="$HOME/.claude-logs"; mkdir -p "$logs/qa-state" "$logs/qa-reports"
+last_jsonl() { awk '/^```jsonl[[:space:]]*$/{b="";on=1;next} /^```[[:space:]]*$/{if(on){last=b;on=0};next} on{b=b $0 "\n"} END{printf "%s",last}'; }
 msg=$(jq -r '.last_assistant_message // ""' <<<"$input")
-block=$(awk '/^```jsonl[[:space:]]*$/{b="";on=1;next} /^```[[:space:]]*$/{if(on){last=b;on=0};next} on{b=b $0 "\n"} END{printf "%s",last}' <<<"$msg")
+block=$(last_jsonl <<<"$msg")
+# 裏で動いたエージェントは、文章を書かずに SubagentHandback の道具でレポートを返すことがある。
+# そのときは最後の文章が空になるので、エージェントの記録から最後に返したレポートを読む
+if [ -z "$block" ]; then
+  tr=$(jq -r '.agent_transcript_path // (if (.transcript_path // "") != "" and (.agent_id // "") != "" then (.transcript_path | sub("\\.jsonl$"; "")) + "/subagents/agent-" + .agent_id + ".jsonl" else "" end)' <<<"$input")
+  if [ -n "$tr" ] && [ -f "$tr" ]; then
+    handback=$(jq -rn '[inputs | .message.content? | arrays | .[] | select(.type? == "tool_use" and .name? == "SubagentHandback") | .input.message? | strings] | last // ""' "$tr" 2>/dev/null)
+    if [ -n "$handback" ]; then msg=$handback; block=$(last_jsonl <<<"$msg"); fi
+  fi
+fi
 records=$(jq -c --slurp . <<<"$block" 2>/dev/null) || records=""
 summary=$(jq -c 'map(select(.type=="summary")) | first // empty' <<<"${records:-[]}")
 if [ -z "$summary" ]; then
