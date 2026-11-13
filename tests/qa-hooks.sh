@@ -238,6 +238,19 @@ handback_line "$(report "$sum"$'\n'"$f1")" >> "$work/tr/agent-u.jsonl"
 save_tr "$(jq -n --arg p "$work/tr/agent-u.jsonl" '{agent_transcript_path:$p}')" >/dev/null
 check "保存: 文章と道具の両方があれば後のほうを読む" '1 0' "$(jq -r '"\(.blockers) \(.majors)"' "$(state_file)")"
 
+# 道具の呼び出しが、フックのあとに遅れて記録に書かれるとき
+text_line "途中の文章" > "$work/tr/agent-late.jsonl"
+(sleep 0.5; handback_line "$(report '{"type":"summary","target":"pr","verdict":"修正推奨","needs_human":false}'$'\n'"$f2")" >> "$work/tr/agent-late.jsonl") &
+msg=$(save_tr "$(jq -n --arg p "$work/tr/agent-late.jsonl" '{agent_transcript_path:$p}')")
+wait
+check "保存: 記録に遅れて出てきたレポートを待って読む" '0 1' "$(jq -r '"\(.blockers) \(.majors)"' "$(state_file)")"
+check "保存: 待って読めたら書き直させない" null "$(jq -r '.decision // "null"' <<<"${msg:-{\}}")"
+text_line "途中の文章" > "$work/tr/agent-never.jsonl"
+start=$(date +%s)
+msg=$(QA_SAVE_WAIT_STEPS=3 save_tr "$(jq -n --arg p "$work/tr/agent-never.jsonl" '{agent_transcript_path:$p}')")
+check "保存: 待っても出てこなければ書き直させる" block "$(jq -r .decision <<<"$msg")"
+check "保存: 待つのは決めた回数まで" yes "$([ $(($(date +%s) - start)) -le 2 ] && echo yes)"
+
 # 同じエージェントでフックが2回呼ばれたとき（文章で止まったときと、道具で返したあと）
 rm -f "$(state_file)"
 lines() { wc -l < "$HOME/.claude-logs/qa-findings-$day.jsonl" | tr -d ' '; }
