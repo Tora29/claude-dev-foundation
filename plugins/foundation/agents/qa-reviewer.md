@@ -33,6 +33,7 @@ model: sonnet
 
 ## 出力B: 機械向けログ（JSON Lines）
 応答の最後に、jsonl を言語指定したコードブロックで出力する。SubagentStop フックがこのブロックを保存する。
+出力Aと出力Bは、まず通常の応答の文章として書く。レポートを返す道具（SubagentHandback など）を使うときも、その前に同じ内容を文章で書く。フックは最後の文章からブロックを読むため。
 1行目はサマリー:
 {"type":"summary","target":"pr|requirements|design","verdict":"差し戻し|修正推奨|マージ可|対象なし","needs_human":false}
 2行目以降は指摘を1行1件（指摘がなければサマリーだけ）:
