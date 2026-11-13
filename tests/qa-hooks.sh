@@ -222,6 +222,34 @@ check "保存: 記録が無いことを知らせる" yes "$(jq -r .systemMessage
 save_tr "$(jq -n --arg p "$work/tr/agent-x.jsonl" '{agent_transcript_path:$p,last_assistant_message:"# 文章\n本文"}')" >/dev/null
 check "保存: 文章に jsonl が無くても記録から読む" '0 1' "$(jq -r '"\(.blockers) \(.majors)"' "$(state_file)")"
 
+# 文章と SubagentHandback を1つの発言で出し、フックの時点で道具の呼び出しがまだ記録に無いとき
+text_line() { # 文章
+  jq -cn --arg m "$1" '{type:"assistant",message:{role:"assistant",content:[{type:"text",text:$m}]}}'
+}
+{ text_line "途中の文章"; text_line "$(report "$sum"$'\n'"$f1")"; text_line "締めの一言"; } > "$work/tr/agent-t.jsonl"
+save_tr "$(jq -n --arg p "$work/tr/agent-t.jsonl" '{agent_transcript_path:$p}')" >/dev/null
+check "保存: 記録の中の jsonl を含む最後の文章を読む" '1 0' "$(jq -r '"\(.blockers) \(.majors)"' "$(state_file)")"
+text_line "$(report '{"type":"summary","target":"pr","verdict":"修正推奨","needs_human":false}'$'\n'"$f2")" > "$work/tr/agent-u.jsonl"
+handback_line "$(report "$sum"$'\n'"$f1")" >> "$work/tr/agent-u.jsonl"
+save_tr "$(jq -n --arg p "$work/tr/agent-u.jsonl" '{agent_transcript_path:$p}')" >/dev/null
+check "保存: 文章と道具の両方があれば後のほうを読む" '1 0' "$(jq -r '"\(.blockers) \(.majors)"' "$(state_file)")"
+
+# 同じエージェントでフックが2回呼ばれたとき（文章で止まったときと、道具で返したあと）
+rm -f "$(state_file)"
+lines() { wc -l < "$HOME/.claude-logs/qa-findings-$day.jsonl" | tr -d ' '; }
+before=$(lines)
+save_tr "$(jq -n --arg m "$(report "$sum"$'\n'"$f1")" '{agent_id:"dup1",last_assistant_message:$m}')" >/dev/null
+save_tr "$(jq -n --arg p "$work/tr/agent-u.jsonl" '{agent_id:"dup1",agent_transcript_path:$p}')" >/dev/null
+check "保存: 同じエージェントの2回目は保存しない（streak）" 1 "$(jq -r .blocker_streak "$(state_file)")"
+check "保存: 同じエージェントの2回目は保存しない（指摘の行）" 2 "$(($(lines) - before))"
+save_tr "$(jq -n --arg m "$(report "$sum"$'\n'"$f1")" '{agent_id:"dup2",last_assistant_message:$m}')" >/dev/null
+check "保存: 別のエージェントなら保存する" 2 "$(jq -r .blocker_streak "$(state_file)")"
+save_tr "$(jq -n '{agent_id:"dup3",last_assistant_message:"jsonl の無い文章"}')" >/dev/null
+save_tr "$(jq -n --arg p "$work/tr/agent-t.jsonl" '{agent_id:"dup3",agent_transcript_path:$p}')" >/dev/null
+check "保存: 1回目に読めなければ2回目で保存する" 3 "$(jq -r .blocker_streak "$(state_file)")"
+save_tr "$(jq -n --arg m "$(report "$sum"$'\n'"$f1")" '{agent_id:"../x",last_assistant_message:$m}')" >/dev/null
+check "保存: おかしなエージェントの ID でも印をフォルダの外に作らない" no "$([ -e "$HOME/.claude-logs/qa-state/x" ] && echo yes || echo no)"
+
 # qa-bash-guard.sh
 mkdir -p .claude
 printf '%s\n' 'npm test' 'semgrep scan --config p/default --metrics=off --error --quiet .' > .claude/qa-test-commands

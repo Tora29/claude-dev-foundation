@@ -6,15 +6,23 @@ input=$(cat)
 cd "$(jq -r .cwd <<<"$input")" || exit 0
 logs="$HOME/.claude-logs"; mkdir -p "$logs/qa-state" "$logs/qa-reports"
 last_jsonl() { awk '/^```jsonl[[:space:]]*$/{b="";on=1;next} /^```[[:space:]]*$/{if(on){last=b;on=0};next} on{b=b $0 "\n"} END{printf "%s",last}'; }
+# 1回の QA でフックが2回呼ばれることがある（文章で答えて止まったときと、SubagentHandback で返したあと）。
+# 同じエージェントの結果は1回だけ保存する。2回とも保存すると、指摘が重なり、blocker の連続回数を2回数えるため
+agent=$(jq -r '.agent_id // "" | select(test("^[A-Za-z0-9_-]+$")) // ""' <<<"$input")
+mark=""; [ -n "$agent" ] && mark="$logs/qa-state/saved/$agent"
+[ -n "$mark" ] && [ -f "$mark" ] && exit 0
 msg=$(jq -r '.last_assistant_message // ""' <<<"$input")
 block=$(last_jsonl <<<"$msg")
-# 裏で動いたエージェントは、文章を書かずに SubagentHandback の道具でレポートを返すことがある。
-# そのときは最後の文章が空になるので、エージェントの記録から最後に返したレポートを読む
+# 文章と SubagentHandback を1つの発言で出すと、フックは道具で返したあとにしか呼ばれず、最後の文章が空になる。
+# そのときはエージェントの記録から、jsonl のブロックを含む最後の文章か、道具で返したレポートを読む。
+# 道具の呼び出しはフックの時点でまだ記録に書かれていないことがあるので、文章のほうも探す
 if [ -z "$block" ]; then
   tr=$(jq -r '.agent_transcript_path // (if (.transcript_path // "") != "" and (.agent_id // "") != "" then (.transcript_path | sub("\\.jsonl$"; "")) + "/subagents/agent-" + .agent_id + ".jsonl" else "" end)' <<<"$input")
   if [ -n "$tr" ] && [ -f "$tr" ]; then
-    handback=$(jq -rn '[inputs | .message.content? | arrays | .[] | select(.type? == "tool_use" and .name? == "SubagentHandback") | .input.message? | strings] | last // ""' "$tr" 2>/dev/null)
-    if [ -n "$handback" ]; then msg=$handback; block=$(last_jsonl <<<"$msg"); fi
+    found=$(jq -rn '[inputs | select(.message.role? == "assistant") | .message.content? | arrays | .[]
+      | if .type? == "text" then .text? elif .type? == "tool_use" and .name? == "SubagentHandback" then .input.message? else empty end
+      | strings | select(test("(^|\n)```jsonl[ \t]*(\n|$)"))] | last // ""' "$tr" 2>/dev/null)
+    if [ -n "$found" ]; then msg=$found; block=$(last_jsonl <<<"$msg"); fi
   fi
 fi
 records=$(jq -c --slurp . <<<"$block" 2>/dev/null) || records=""
@@ -38,6 +46,7 @@ jq -c --arg b "$branch" --arg d "$day" --arg t "$target" --arg r "$run" --argjso
 safe_branch=${branch//\//-}
 awk '/^```jsonl[[:space:]]*$/{exit} {print}' <<<"$msg" |
   jq -Rrs -L "$here" 'include "mask"; mask' > "$logs/qa-reports/$day-$safe_branch-$target-$run.md"
+if [ -n "$mark" ]; then mkdir -p "${mark%/*}"; : > "$mark"; fi
 [ "$target" = pr ] || exit 0
 # ゲート用の状態更新。件数は指摘の行から数え、LLMの申告を使わない
 high=$(jq '[.[]|select(.type=="finding" and .severity=="blocker" and .fix_risk=="high")]|length' <<<"$records")
