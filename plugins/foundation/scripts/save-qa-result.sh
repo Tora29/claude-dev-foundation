@@ -18,18 +18,26 @@ block=$(last_jsonl <<<"$msg")
 # 道具の呼び出しはフックの時点でまだ記録に書かれていないことがあるので、文章のほうも探す
 if [ -z "$block" ]; then
   tr=$(jq -r '.agent_transcript_path // (if (.transcript_path // "") != "" and (.agent_id // "") != "" then (.transcript_path | sub("\\.jsonl$"; "")) + "/subagents/agent-" + .agent_id + ".jsonl" else "" end)' <<<"$input")
+  # SubagentHandback で返した直後にフックが呼ばれると、道具の呼び出しがまだ記録に書かれていないことがある。
+  # 道具で返したあとはエージェントに続きをさせられないので、記録に出てくるまで少し待って読み直す（0.1秒おき、既定で3秒まで）
   if [ -n "$tr" ] && [ -f "$tr" ]; then
-    found=$(jq -rn '[inputs | select(.message.role? == "assistant") | .message.content? | arrays | .[]
-      | if .type? == "text" then .text? elif .type? == "tool_use" and .name? == "SubagentHandback" then .input.message? else empty end
-      | strings | select(test("(^|\n)```jsonl[ \t]*(\n|$)"))] | last // ""' "$tr" 2>/dev/null)
+    steps=${QA_SAVE_WAIT_STEPS:-30}
+    for ((i = 0; i <= steps; i++)); do
+      found=$(jq -rn '[inputs | select(.message.role? == "assistant") | .message.content? | arrays | .[]
+        | if .type? == "text" then .text? elif .type? == "tool_use" and .name? == "SubagentHandback" then .input.message? else empty end
+        | strings | select(test("(^|\n)```jsonl[ \t]*(\n|$)"))] | last // ""' "$tr" 2>/dev/null)
+      [ -n "$found" ] && break
+      [ "$i" -lt "$steps" ] && sleep 0.1
+    done
     if [ -n "$found" ]; then msg=$found; block=$(last_jsonl <<<"$msg"); fi
   fi
 fi
 records=$(jq -c --slurp . <<<"$block" 2>/dev/null) || records=""
 summary=$(jq -c 'map(select(.type=="summary")) | first // empty' <<<"${records:-[]}")
 if [ -z "$summary" ]; then
-  # 文章を書かずに SubagentHandback だけで返すと、フックの時点ではレポートがどこにも無い。
-  # 1回目は止まらせずに、レポートを文章で書き直させる。書き直しても読めなければ（stop_hook_active）、知らせて終わる
+  # レポートが文章にも記録にも無い。1回目は止まらせずに、レポートを文章で書き直させる。
+  # ただし SubagentHandback で返したあとのエージェントは続きをしないので、そのときは上の読み直しが頼り。
+  # 書き直しても読めなければ（stop_hook_active）、知らせて終わる
   if [ "$(jq -r '.stop_hook_active // false' <<<"$input")" != true ]; then
     jq -n '{decision:"block",reason:"QAの結果をフックが読み取れませんでした。出力A（人間向けレポート）と出力B（jsonl を言語指定したコードブロック）を、道具を使わずに通常の応答の文章としてもう一度出力してください。jsonl のブロックは応答の最後に置いてください。"}'
     exit 0
