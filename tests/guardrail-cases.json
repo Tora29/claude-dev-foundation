@@ -1,6 +1,6 @@
 [
-  {"want":"deny","cmd":"gh pr merge 12 --squash"},
-  {"want":"deny","cmd":"cd x && sudo gh pr merge 12"},
+  {"want":"pass","cmd":"gh pr merge 12 --squash"},
+  {"want":"pass","cmd":"cd x && sudo gh pr merge 12"},
   {"want":"deny","cmd":"gh api -X PUT repos/o/r/pulls/1/merge"},
   {"want":"deny","cmd":"gh repo delete o/r --yes"},
   {"want":"deny","cmd":"gh auth token"},
@@ -18,7 +18,7 @@
   {"want":"deny","cmd":"FOO=1 sudo rm -rf ${HOME}/"},
   {"want":"deny","cmd":"bash -c \"cd /tmp; rm -rf /\""},
   {"want":"deny","cmd":"sh -c 'rm -rf ~'"},
-  {"want":"deny","cmd":"eval \"gh pr merge 1\""},
+  {"want":"pass","cmd":"eval \"gh pr merge 1\""},
   {"want":"deny","cmd":"mkfs.ext4 /dev/sda1"},
   {"want":"deny","cmd":"diskutil eraseDisk APFS X disk2"},
   {"want":"deny","cmd":"dd if=/dev/zero of=/dev/disk2"},

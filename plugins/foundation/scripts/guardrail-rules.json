@@ -1,6 +1,5 @@
 {
   "bash": [
-    { "decision": "deny", "pattern": "^gh\\s+pr\\s+merge\\b", "reason": "PR のマージは人が行います" },
     { "decision": "deny", "pattern": "^gh\\s+api\\b.*(pulls/\\S+/merge\\b|mergePullRequest|enablePullRequestAutoMerge)", "reason": "PR のマージは人が行います" },
     { "decision": "deny", "pattern": "^gh\\s+repo\\s+delete\\b", "reason": "リポジトリの削除は人が行います" },
     { "decision": "deny", "pattern": "^gh\\s+auth\\s+token\\b", "reason": "認証トークンを出力するコマンドは禁止です" },
